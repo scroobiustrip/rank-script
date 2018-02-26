@@ -19,21 +19,21 @@ function getConfig(request) {
       {
         "type": "TEXTINPUT",
         "name": "key",
-        "displayName": "15087-4739f12e7b7b4bb9c1a7643e56b390bf",
+        "displayName": "API Key",
         "helpText": "API key taken from Tools > Utilities > API Console.",
         "placeholder": "15087-4739f12e7b7b4bb9c1a7643e56b390bf"
       },
       {
         "type": "TEXTINPUT",
         "name": "campaign_id",
-        "displayName": "75387",
+        "displayName": "Campaign ID",
         "helpText": "The campaign id to retrieve rankings from.",
         "placeholder": "75387"
       },
       {
         "type": "TEXTINPUT",
         "name": "domain",
-        "displayName": "pistonheads.com",
+        "displayName": "Root Domain",
         "helpText": "The root domain you want rank data on.",
         "placeholder": "pistonheads.com"
       },
@@ -132,6 +132,22 @@ var dataSchema = [
 
 
 /**
+ * Takes date input in Unix epoch and return in YYYYMMDD format. Returns '' if
+ * input is undefined or null.
+ *
+ * @param {int} date Unix epoch.
+ * @returns {string} Date in YYYYMMDD format.
+ */
+config.formatDate = function (date) {
+  if (!date) {
+    return '';
+  }
+  var dateObj = new Date(date * 1000);
+  return dateObj.toISOString().slice(0, 10).replace(/-/g, '');
+};
+
+
+/**
  * This is one of the four requisites of a Data Studio connector. 
  * This function sends the Data Studio schema upon request.
  * See: https://developers.google.com/datastudio/connector/build
@@ -183,14 +199,6 @@ function getData(request) {
       }
     }
   }
-  
-  var startDate = request.dateRange.startDate;
-  var endDate = request.dateRange.endDate;
-  
-  var dataConfig = {
-   "date_start": startDate,
-   "date_end": endDate,
-  };
     
   var url_parts = [
     'https://www.rankranger.com/api/v2/?rank_stats&key=',
@@ -215,8 +223,7 @@ function getData(request) {
       for (var j = 0; j < header_rows.length; j++) {
         switch (header_rows[j].name) {
           case 'date':
-            rankings_row.push(keyword_obj.keywordDate.date);
-            break;
+            rankings_row.push(config.formatDate(keywordStats.date));
           case 'url':
             rankings_row.push(keyword_obj.keywordStats.url);
             break;
