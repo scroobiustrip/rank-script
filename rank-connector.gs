@@ -1,13 +1,8 @@
-/**
- * This is one of the four requisites of a Data Studio connector. 
- * This function sends the Data Studio configuration parameters upon request.
- * Note that this example does not use a date range selector - where
- * dateRangeRequired would be set to true
- * See: https://developers.google.com/datastudio/connector/build
- *
+/*
  * @param {string} request - The configuration request from Data Studio.
  * @returns {object} 
  */
+
 function getConfig(request) {
   var config = {
     "configParams": [
@@ -18,27 +13,27 @@ function getConfig(request) {
       },
       {
         "type": "TEXTINPUT",
-        "name": "key",
+        "name": "apiKey",
         "displayName": "API Key",
-        "helpText": "API key taken from Tools > Utilities > API Console.",
-        "placeholder": "15087-4739f12e7b7b4bb9c1a7643e56b390bf"
+        "helpText": "You'll be provided with this :)",
+        "placeholder": "API Key"
       },
       {
         "type": "TEXTINPUT",
-        "name": "campaign_id",
+        "name": "campaignId",
         "displayName": "Campaign ID",
-        "helpText": "The campaign id to retrieve rankings from.",
-        "placeholder": "75387"
+        "helpText": "We need to retrieve this through the API",
+        "placeholder": "Campaign ID"
       },
       {
         "type": "TEXTINPUT",
         "name": "domain",
         "displayName": "Root Domain",
-        "helpText": "The root domain you want rank data on.",
-        "placeholder": "pistonheads.com"
-      },
+        "helpText": "The root domain of your rank ranger login url.",
+        "placeholder": "root domain"
+      }
     ],
-   "dateRangeRequired": true
+    "dateRangeRequired": true
   };
   return config;
 }
@@ -53,7 +48,7 @@ var dataSchema = [
  {
     name: 'date',
     label: 'Date',
-    description: 'Date of rankings to select in YYYYMMDDHH',
+    description: 'Date of rankings to select in YYYY-MM-DD',
     group: 'Date',
     dataType: 'STRING',
     semantics: {
@@ -64,23 +59,23 @@ var dataSchema = [
   },
   {
     name: 'url',
-    label: 'URL',
+    label: 'Domain',
     dataType: 'STRING',
     semantics: {
     conceptType: 'DIMENSION'
     }
   },
   {
-    name: 'landingPage',
+    name: 'lp',
     label: 'Landing Page',
     dataType: 'URL',
     semantics: {
       conceptType: 'DIMENSION'
     }
   },
-  {  
+  {
     name: 'keyword',
-    label: 'keyword',
+    label: 'Keyword',
     dataType: 'STRING',
     semantics: {
       conceptType: 'DIMENSION'
@@ -95,16 +90,16 @@ var dataSchema = [
     }
   },
   {
-    name: 'searchVolume',
+    name: 'search_volume',
     label: 'Search Volume',
     dataType: 'NUMBER',
     semantics: {
-      conceptType: 'METRIC',
+      conceptType: 'DIMENSION',
       isReaggregatable: true
     }
   },
   {  
-    name: 'seachEngine',
+    name: 'se',
     label: 'Search Engine',
     dataType: 'STRING',
     semantics: {
@@ -112,9 +107,9 @@ var dataSchema = [
     }
   },
   {
-    name: 'searchEngineName',
+    name: 'se_name',
     label: 'Sarch Engine Name',
-    dataType: 'TEXT',
+    dataType: 'STRING',
     semantics: {
       conceptType: 'DIMENSION'
     }
@@ -131,30 +126,11 @@ var dataSchema = [
 ];
 
 
-/**
- * Takes date input in Unix epoch and return in YYYYMMDD format. Returns '' if
- * input is undefined or null.
- *
- * @param {int} date Unix epoch.
- * @returns {string} Date in YYYYMMDD format.
- */
-config.formatDate = function (date) {
-  if (!date) {
-    return '';
-  }
-  var dateObj = new Date(date * 1000);
-  return dateObj.toISOString().slice(0, 10).replace(/-/g, '');
-};
-
-
-/**
- * This is one of the four requisites of a Data Studio connector. 
- * This function sends the Data Studio schema upon request.
- * See: https://developers.google.com/datastudio/connector/build
- *
+/*
  * @param {string} request - The request from Data Studio.
  * @returns {object} 
- */
+*/
+
 function getSchema(request) {
   return {schema: dataSchema};
 }
@@ -169,6 +145,7 @@ function getSchema(request) {
  *
  * @returns {object} 
  */
+
 function getAuthType() {
   var response = {
     "type": "NONE"
@@ -178,18 +155,13 @@ function getAuthType() {
 
 
 /**
- * This is one of the four requisites of a Data Studio connector. 
- * This function is the main one called once a table or chart has been placed on
- * to the canvas. The request object includes all configParams with values, 
- * as well as a fields array of the selected dimensions and metrics (in order)
- * so that that the appropriate headers and rows can be returned to satisfy 
- * the request. 
  *
  * See: https://developers.google.com/datastudio/connector/build
  *
  * @param {string} request - The request from Data Studio.
  * @returns {object} 
  */
+
 function getData(request) {
   var header_rows = [];
   for (var i = 0; i < request.fields.length; i++) {
@@ -199,16 +171,19 @@ function getData(request) {
       }
     }
   }
-    
+  
+  var startDate = request.dateRange.startDate;       /* Should hopefully build the date parameter in the URL? */
+
+  
   var url_parts = [
     'https://www.rankranger.com/api/v2/?rank_stats&key=',
-    request.configParams.key,
+    request.configParams.apiKey,
     '&date=',
-    request.configParams.date,
+    startDate,
+    '&campaign_id=',
+    request.configParams.campaignId,
     '&domain=',
     request.configParams.domain,
-    '&campaign_id=',
-    request.configParams.campaign_id,
     '&output=json'
   ];
   
@@ -223,30 +198,31 @@ function getData(request) {
       for (var j = 0; j < header_rows.length; j++) {
         switch (header_rows[j].name) {
           case 'date':
-            rankings_row.push(config.formatDate(keywordStats.date));
-          case 'url':
-            rankings_row.push(keyword_obj.keywordStats.url);
+            rankings_row.push(keyword_obj.date);
             break;
-          case 'landingPage':
-            rankings_row.push(keyword_obj.keywordStats.landingPage);
+          case 'url':
+            rankings_row.push(keyword_obj.url);
+            break;
+          case 'lp':
+            rankings_row.push(keyword_obj.lp);
             break;
           case 'keyword':
             rankings_row.push(keyword_obj.keyword);
             break;
           case 'tags':
-            rankings_row.push(keyword_obj.keywordStats.tags);
+            rankings_row.push(keyword_obj.tags);
             break;
-          case 'searchVolume':
-            rankings_row.push(keyword_obj.keywordStats.searchVolume);
+          case 'search_volume':
+            rankings_row.push(keyword_obj.search_volume);
             break;
-          case 'seachEngine':
-            rankings_row.push(keyword_obj.keywordStats.seachEngine);
+          case 'se':
+            rankings_row.push(keyword_obj.se);
             break;
-          case 'searchEngineName':
-            rankings_row.push(keyword_obj.keywordStats.searchEngineName);
+          case 'se_name':
+            rankings_row.push(keyword_obj.se_name);
             break;
           case 'rank':
-            rankings_row.push(keyword_obj.keywordRanking.rank || 101);
+            rankings_row.push(keyword_obj.rank || 101);
             break;
         }
       }
@@ -261,14 +237,14 @@ function getData(request) {
     };
     return return_data;
   } else {
-    console.info('The API returned a non-200 response. Please check your settings and try again');
-    throw ("The API returned a non-200 response. Please check your settings and try again. ");
+    console.info('The Rank Ranger API returned a non-200 response. Please check your settings and try again');
+    throw ("The Rank Ranger API returned a non-200 response. Please check your settings and try again. ");
   }
   
 }
 
 /**
- * keywords are called from the STAT API one page at a time. This recursively allows for 
+ * Keywords are called from the STAT API one page at a time. This recursively allows for 
  * pagination of these results into sequential requests to the API endpoint. 
  * Each request results are then appended to the existing results and then eventually returned
  * back to the getData() function.
@@ -282,12 +258,16 @@ function get_keywords_recursive( settings, existing_results, next_url ) {
   existing_results = existing_results || [];
   next_url = next_url || false;
   
-  var url_parts = ['https://www.rankranger.com/api/v2/?rank_stats&key=', settings.key, settings.date, settings.domain, settings.campaign_id ];
+  var startDate = request.startDate.date;    /*  Got to figure how to get the date needed from getData() function's local scope  */
+  
+  var url_parts = ['https://www.rankranger.com/api/v2/?rank_stats&key=', settings.apiKey, '&date=' ];
     
   if (existing_results.length == 0) {
-    url_parts.push('&date=');
-    url_parts.push('&domain=');
+    url_parts.push(startDate);              /*  Same as above need to access the user requested date to build URL */
     url_parts.push('&campaign_id=');
+    url_parts.push(settings.campaignId);
+    url_parts.push('&domain=');
+    url_parts.push(settings.domain);
     url_parts.push('&output=json');
   } else {
     url_parts.push(next_url);
